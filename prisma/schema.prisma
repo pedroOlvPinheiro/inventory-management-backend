@@ -1,0 +1,58 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum MaterialType {
+  SIMPLE
+  KIT
+}
+
+model Material {
+  id                String       @id @default(uuid())
+  name              String       @unique
+  type              MaterialType @default(SIMPLE)
+  currentQuantity   Int          @default(0)
+  referenceQuantity Int?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  entries     StockEntry[]
+  withdrawals Withdrawal[]
+}
+
+model StockEntry {
+  id         String   @id @default(uuid())
+  materialId String
+  material   Material @relation(fields: [materialId], references: [id])
+  quantity   Int
+  createdAt  DateTime @default(now())
+}
+
+model Occasion {
+  id   String @id @default(uuid())
+  name String @unique
+
+  withdrawals Withdrawal[]
+}
+
+model Withdrawal {
+  id              String   @id @default(uuid())
+  materialId      String
+  material        Material @relation(fields: [materialId], references: [id])
+  quantity        Int
+  responsibleName String
+  occasionId      String
+  occasion        Occasion @relation(fields: [occasionId], references: [id])
+  createdAt       DateTime @default(now())
+}
