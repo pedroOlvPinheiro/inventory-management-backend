@@ -29,6 +29,7 @@ model Material {
 
   entries         StockEntry[]
   withdrawals     Withdrawal[]
+  returns         Return[]
   assemblies      KitAssembly[]
   recipeOf        KitComponent[] @relation("KitToComponents")
   usedAsComponent KitComponent[] @relation("ComponentToKits")
@@ -47,6 +48,7 @@ model Occasion {
   name String @unique
 
   withdrawals Withdrawal[]
+  returns     Return[]
 }
 
 model Withdrawal {
@@ -58,6 +60,16 @@ model Withdrawal {
   occasionId      String
   occasion        Occasion @relation(fields: [occasionId], references: [id])
   createdAt       DateTime @default(now())
+}
+
+model Return {
+  id         String   @id @default(uuid())
+  materialId String
+  material   Material @relation(fields: [materialId], references: [id])
+  occasionId String
+  occasion   Occasion @relation(fields: [occasionId], references: [id])
+  quantity   Int
+  createdAt  DateTime @default(now())
 }
 
 model KitComponent {
