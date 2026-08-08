@@ -6,6 +6,7 @@ import { MaterialsModule } from './materials/materials.module';
 import { OccasionsModule } from './occasions/occasions.module';
 import { EntriesModule } from './entries/entries.module';
 import { WithdrawalsModule } from './withdrawals/withdrawals.module';
+import { KitsModule } from './kits/kits.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { WithdrawalsModule } from './withdrawals/withdrawals.module';
     OccasionsModule,
     EntriesModule,
     WithdrawalsModule,
+    KitsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

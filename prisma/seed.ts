@@ -18,7 +18,15 @@ async function main() {
     });
   }
 
-  const materialNames = ['Santinhos', 'Bottons', 'Panfletos'];
+  const materialNames = [
+    'Santinhos',
+    'Bottons',
+    'Panfletos',
+    'Adesivos de Celular',
+    'Cartazes',
+    'Adesivos de Casa (Retangular)',
+    'Cartões',
+  ];
 
   for (const name of materialNames) {
     await prisma.material.upsert({
@@ -28,7 +36,56 @@ async function main() {
     });
   }
 
-  console.log('Seed concluído: 4 ocasiões e 3 materiais.');
+  const kits = [
+    {
+      name: 'Kit Liderança',
+      recipe: [
+        { materialName: 'Santinhos', quantityPerKit: 200 },
+        { materialName: 'Bottons', quantityPerKit: 72 },
+        { materialName: 'Adesivos de Celular', quantityPerKit: 10 },
+        { materialName: 'Cartazes', quantityPerKit: 20 },
+        { materialName: 'Adesivos de Casa (Retangular)', quantityPerKit: 5 },
+      ],
+    },
+    {
+      name: 'Kit Carro',
+      recipe: [
+        { materialName: 'Cartões', quantityPerKit: 100 },
+        { materialName: 'Bottons', quantityPerKit: 50 },
+        { materialName: 'Adesivos de Celular', quantityPerKit: 10 },
+        { materialName: 'Adesivos de Casa (Retangular)', quantityPerKit: 1 },
+      ],
+    },
+  ];
+
+  for (const kitSeed of kits) {
+    const kit = await prisma.material.upsert({
+      where: { name: kitSeed.name },
+      update: {},
+      create: { name: kitSeed.name, type: MaterialType.KIT },
+    });
+
+    // idempotente: reconstroi a receita do zero a cada seed, em vez de acumular duplicatas
+    await prisma.kitComponent.deleteMany({ where: { kitId: kit.id } });
+
+    for (const item of kitSeed.recipe) {
+      const component = await prisma.material.findUniqueOrThrow({
+        where: { name: item.materialName },
+      });
+
+      await prisma.kitComponent.create({
+        data: {
+          kitId: kit.id,
+          componentId: component.id,
+          quantityPerKit: item.quantityPerKit,
+        },
+      });
+    }
+  }
+
+  console.log(
+    `Seed concluído: ${occasionNames.length} ocasiões, ${materialNames.length} materiais simples e ${kits.length} kits com receita.`,
+  );
 }
 
 main()
