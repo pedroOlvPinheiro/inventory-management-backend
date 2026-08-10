@@ -6,6 +6,7 @@ import {
 import { MaterialType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateEntryDTO } from './dto/create-entry.dto';
+import { UpdateEntryDTO } from './dto/update-entry.dto';
 import { EntryOutputDTO } from './dto/entry-output.dto';
 
 @Injectable()
@@ -50,6 +51,46 @@ export class EntriesService {
     });
 
     return new EntryOutputDTO(entry);
+  }
+
+  async update(id: string, dto: UpdateEntryDTO): Promise<EntryOutputDTO> {
+    const { entry, warning } = await this.prisma.$transaction(async (tx) => {
+      const existingEntry = await tx.stockEntry.findUnique({ where: { id } });
+
+      if (!existingEntry) {
+        throw new NotFoundException(`Entrada com id ${id} não encontrada`);
+      }
+
+      const firstEntry = await tx.stockEntry.findFirst({
+        where: { materialId: existingEntry.materialId },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      });
+
+      const isFirstEntry = firstEntry?.id === existingEntry.id;
+      const delta = dto.quantity - existingEntry.quantity;
+
+      const updatedEntry = await tx.stockEntry.update({
+        where: { id },
+        data: { quantity: dto.quantity },
+      });
+
+      const updatedMaterial = await tx.material.update({
+        where: { id: existingEntry.materialId },
+        data: {
+          currentQuantity: { increment: delta },
+          referenceQuantity: isFirstEntry ? dto.quantity : undefined,
+        },
+      });
+
+      const resultingWarning =
+        updatedMaterial.currentQuantity < 0
+          ? `Estoque insuficiente: saldo ficará em ${updatedMaterial.currentQuantity} após a edição.`
+          : undefined;
+
+      return { entry: updatedEntry, warning: resultingWarning };
+    });
+
+    return new EntryOutputDTO(entry, warning);
   }
 
   async findAll(materialId?: string): Promise<EntryOutputDTO[]> {
