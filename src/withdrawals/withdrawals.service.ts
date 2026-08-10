@@ -6,6 +6,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { normalizeName } from '../utils/normalize-name.util';
 import { CreateWithdrawalDTO } from './dto/create-withdrawal.dto';
+import { UpdateWithdrawalDTO } from './dto/update-withdrawal.dto';
 import { WithdrawalOutputDTO } from './dto/withdrawal-output.dto';
 
 @Injectable()
@@ -82,6 +83,67 @@ export class WithdrawalsService {
             : undefined;
 
         return { withdrawal: createdWithdrawal, warning: resultingWarning };
+      },
+    );
+
+    return new WithdrawalOutputDTO(withdrawal, warning);
+  }
+
+  async update(
+    id: string,
+    dto: UpdateWithdrawalDTO,
+  ): Promise<WithdrawalOutputDTO> {
+    const { withdrawal, warning } = await this.prisma.$transaction(
+      async (tx) => {
+        const existingWithdrawal = await tx.withdrawal.findUnique({
+          where: { id },
+        });
+
+        if (!existingWithdrawal) {
+          throw new NotFoundException(`Retirada com id ${id} não encontrada`);
+        }
+
+        if (dto.occasionId) {
+          const occasion = await tx.occasion.findUnique({
+            where: { id: dto.occasionId },
+          });
+
+          if (!occasion) {
+            throw new NotFoundException(
+              `Ocasião com id ${dto.occasionId} não encontrada`,
+            );
+          }
+        }
+
+        const delta =
+          dto.quantity !== undefined
+            ? dto.quantity - existingWithdrawal.quantity
+            : 0;
+
+        const updatedWithdrawal = await tx.withdrawal.update({
+          where: { id },
+          data: {
+            quantity: dto.quantity,
+            responsibleName: dto.responsibleName,
+            occasionId: dto.occasionId,
+          },
+        });
+
+        let resultingWarning: string | undefined;
+
+        if (delta !== 0) {
+          const updatedMaterial = await tx.material.update({
+            where: { id: existingWithdrawal.materialId },
+            data: { currentQuantity: { decrement: delta } },
+          });
+
+          resultingWarning =
+            updatedMaterial.currentQuantity < 0
+              ? `Estoque insuficiente: saldo ficará em ${updatedMaterial.currentQuantity} após a edição.`
+              : undefined;
+        }
+
+        return { withdrawal: updatedWithdrawal, warning: resultingWarning };
       },
     );
 
