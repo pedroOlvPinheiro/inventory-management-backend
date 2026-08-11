@@ -15,9 +15,29 @@ export class CreateWithdrawalDTO {
   @Min(1, { message: 'quantity deve ser maior que zero' })
   quantity: number;
 
-  @IsString({ message: 'responsibleName deve ser um texto' })
-  @IsNotEmpty({ message: 'responsibleName não pode estar vazio' })
-  responsibleName: string;
+  @IsOptional()
+  @IsUUID(undefined, { message: 'personId deve ser um uuid válido' })
+  personId?: string;
+
+  @IsOptional()
+  @IsString({ message: 'personName deve ser um texto' })
+  @IsNotEmpty({ message: 'personName não pode estar vazio' })
+  personName?: string;
+
+  @IsOptional()
+  @IsString({ message: 'personContact deve ser um texto' })
+  personContact?: string;
+
+  @IsOptional()
+  @IsUUID(undefined, {
+    message: 'politicalReferenceId deve ser um uuid válido',
+  })
+  politicalReferenceId?: string;
+
+  @IsOptional()
+  @IsString({ message: 'politicalReferenceName deve ser um texto' })
+  @IsNotEmpty({ message: 'politicalReferenceName não pode estar vazio' })
+  politicalReferenceName?: string;
 
   @IsOptional()
   @IsUUID(undefined, { message: 'occasionId deve ser um uuid válido' })
