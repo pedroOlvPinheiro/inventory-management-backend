@@ -1,11 +1,4 @@
-import {
-  IsInt,
-  IsNotEmpty,
-  IsOptional,
-  IsString,
-  IsUUID,
-  Min,
-} from 'class-validator';
+import { IsInt, IsOptional, IsUUID, Min } from 'class-validator';
 
 export class UpdateWithdrawalDTO {
   @IsOptional()
@@ -14,9 +7,8 @@ export class UpdateWithdrawalDTO {
   quantity?: number;
 
   @IsOptional()
-  @IsString({ message: 'responsibleName deve ser um texto' })
-  @IsNotEmpty({ message: 'responsibleName não pode estar vazio' })
-  responsibleName?: string;
+  @IsUUID(undefined, { message: 'personId deve ser um uuid válido' })
+  personId?: string;
 
   @IsOptional()
   @IsUUID(undefined, { message: 'occasionId deve ser um uuid válido' })

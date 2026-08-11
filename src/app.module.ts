@@ -8,6 +8,8 @@ import { EntriesModule } from './entries/entries.module';
 import { WithdrawalsModule } from './withdrawals/withdrawals.module';
 import { KitsModule } from './kits/kits.module';
 import { ReturnsModule } from './returns/returns.module';
+import { PoliticalReferencesModule } from './political-references/political-references.module';
+import { PeopleModule } from './people/people.module';
 
 @Module({
   imports: [
@@ -18,6 +20,8 @@ import { ReturnsModule } from './returns/returns.module';
     WithdrawalsModule,
     KitsModule,
     ReturnsModule,
+    PoliticalReferencesModule,
+    PeopleModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -24,6 +24,16 @@ export class WithdrawalsService {
       );
     }
 
+    if (!dto.personId && !dto.personName) {
+      throw new BadRequestException('Informe personId ou personName');
+    }
+
+    if (dto.personId && dto.personName) {
+      throw new BadRequestException(
+        'Informe apenas personId ou personName, não os dois',
+      );
+    }
+
     const { withdrawal, warning } = await this.prisma.$transaction(
       async (tx) => {
         const material = await tx.material.findUnique({
@@ -62,11 +72,93 @@ export class WithdrawalsService {
             : (await tx.occasion.create({ data: { name } })).id;
         }
 
+        let personId: string;
+
+        if (dto.personId) {
+          const person = await tx.person.findUnique({
+            where: { id: dto.personId },
+          });
+
+          if (!person) {
+            throw new NotFoundException(
+              `Pessoa com id ${dto.personId} não encontrada`,
+            );
+          }
+
+          personId = person.id;
+        } else {
+          const personName = normalizeName(dto.personName as string);
+
+          const existingPerson = await tx.person.findFirst({
+            where: { name: { equals: personName, mode: 'insensitive' } },
+          });
+
+          if (existingPerson) {
+            personId = existingPerson.id;
+          } else {
+            if (!dto.politicalReferenceId && !dto.politicalReferenceName) {
+              throw new BadRequestException(
+                'Informe politicalReferenceId ou politicalReferenceName para cadastrar uma nova pessoa',
+              );
+            }
+
+            if (dto.politicalReferenceId && dto.politicalReferenceName) {
+              throw new BadRequestException(
+                'Informe apenas politicalReferenceId ou politicalReferenceName, não os dois',
+              );
+            }
+
+            let politicalReferenceId: string;
+
+            if (dto.politicalReferenceId) {
+              const politicalReference = await tx.politicalReference.findUnique(
+                {
+                  where: { id: dto.politicalReferenceId },
+                },
+              );
+
+              if (!politicalReference) {
+                throw new NotFoundException(
+                  `Referência com id ${dto.politicalReferenceId} não encontrada`,
+                );
+              }
+
+              politicalReferenceId = politicalReference.id;
+            } else {
+              const referenceName = normalizeName(
+                dto.politicalReferenceName as string,
+              );
+
+              const existingReference = await tx.politicalReference.findFirst({
+                where: { name: { equals: referenceName, mode: 'insensitive' } },
+              });
+
+              politicalReferenceId = existingReference
+                ? existingReference.id
+                : (
+                    await tx.politicalReference.create({
+                      data: { name: referenceName },
+                    })
+                  ).id;
+            }
+
+            const createdPerson = await tx.person.create({
+              data: {
+                name: personName,
+                contact: dto.personContact,
+                politicalReferenceId,
+              },
+            });
+
+            personId = createdPerson.id;
+          }
+        }
+
         const createdWithdrawal = await tx.withdrawal.create({
           data: {
             materialId: dto.materialId,
             quantity: dto.quantity,
-            responsibleName: dto.responsibleName,
+            personId,
             occasionId,
           },
         });
@@ -115,6 +207,18 @@ export class WithdrawalsService {
           }
         }
 
+        if (dto.personId) {
+          const person = await tx.person.findUnique({
+            where: { id: dto.personId },
+          });
+
+          if (!person) {
+            throw new NotFoundException(
+              `Pessoa com id ${dto.personId} não encontrada`,
+            );
+          }
+        }
+
         const delta =
           dto.quantity !== undefined
             ? dto.quantity - existingWithdrawal.quantity
@@ -124,7 +228,7 @@ export class WithdrawalsService {
           where: { id },
           data: {
             quantity: dto.quantity,
-            responsibleName: dto.responsibleName,
+            personId: dto.personId,
             occasionId: dto.occasionId,
           },
         });

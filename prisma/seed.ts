@@ -83,8 +83,56 @@ async function main() {
     }
   }
 
+  const politicalReferenceNames = [
+    'Liderança Zona Norte',
+    'Liderança Centro',
+    'Prefeitura Municipal',
+  ];
+
+  for (const name of politicalReferenceNames) {
+    await prisma.politicalReference.upsert({
+      where: { name },
+      update: {},
+      create: { name },
+    });
+  }
+
+  const people = [
+    {
+      name: 'Ana Paula Souza',
+      contact: '(11) 99999-0001',
+      politicalReferenceName: 'Liderança Zona Norte',
+    },
+    {
+      name: 'Carlos Eduardo Lima',
+      contact: '(11) 99999-0002',
+      politicalReferenceName: 'Liderança Centro',
+    },
+    {
+      name: 'Beatriz Fernandes',
+      contact: '(11) 99999-0003',
+      politicalReferenceName: 'Prefeitura Municipal',
+    },
+  ];
+
+  for (const personSeed of people) {
+    const politicalReference = await prisma.politicalReference.findUniqueOrThrow(
+      { where: { name: personSeed.politicalReferenceName } },
+    );
+
+    await prisma.person.upsert({
+      where: { name: personSeed.name },
+      update: {},
+      create: {
+        name: personSeed.name,
+        contact: personSeed.contact,
+        politicalReferenceId: politicalReference.id,
+      },
+    });
+  }
+
   console.log(
-    `Seed concluído: ${occasionNames.length} ocasiões, ${materialNames.length} materiais simples e ${kits.length} kits com receita.`,
+    `Seed concluído: ${occasionNames.length} ocasiões, ${materialNames.length} materiais simples, ${kits.length} kits com receita, ${politicalReferenceNames.length} referências políticas e ${people.length} pessoas.`,
   );
 }
 
