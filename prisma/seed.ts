@@ -3,84 +3,41 @@ import { PrismaClient, MaterialType } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
-  const occasionNames = [
-    'Confraternizações',
-    'Panfletagem',
-    'Passeatas',
-    'Adesivaço',
-  ];
+  // Previsão da primeira semana de campanha: 500 Kit Liderança + 2000 Kit Carro.
+  // Receitas fixas (briefing-tecnico-roo-code.md, Bloco 4.4):
+  //   Kit Liderança: 200 santinhos, 72 bottons, 10 adesivos de celular, 20 cartazes, 5 adesivos de casa (retangular)
+  //   Kit Carro: 100 cartões, 50 bottons, 10 adesivos de celular, 1 adesivo de casa (retangular)
+  // Os kits em si não são cadastrados aqui (isso é feito depois, via POST /kits) —
+  // só o estoque de materiais simples necessário pra montá-los nessas quantidades.
+  const KIT_LIDERANCA_QUANTITY = 500;
+  const KIT_CARRO_QUANTITY = 2000;
 
-  for (const name of occasionNames) {
-    await prisma.occasion.upsert({
-      where: { name },
-      update: {},
-      create: { name },
-    });
-  }
+  const materialQuantities: Record<string, number> = {
+    Santinhos: 200 * KIT_LIDERANCA_QUANTITY,
+    Bottons: 72 * KIT_LIDERANCA_QUANTITY + 50 * KIT_CARRO_QUANTITY,
+    'Adesivos de Celular': 10 * KIT_LIDERANCA_QUANTITY + 10 * KIT_CARRO_QUANTITY,
+    Cartazes: 20 * KIT_LIDERANCA_QUANTITY,
+    'Adesivos de Casa (Retangular)': 5 * KIT_LIDERANCA_QUANTITY + 1 * KIT_CARRO_QUANTITY,
+    Cartões: 100 * KIT_CARRO_QUANTITY,
+  };
 
-  const materialNames = [
-    'Santinhos',
-    'Bottons',
-    'Panfletos',
-    'Adesivos de Celular',
-    'Cartazes',
-    'Adesivos de Casa (Retangular)',
-    'Cartões',
-  ];
-
-  for (const name of materialNames) {
+  for (const [name, quantity] of Object.entries(materialQuantities)) {
     await prisma.material.upsert({
       where: { name },
-      update: {},
-      create: { name, type: MaterialType.SIMPLE },
+      update: { currentQuantity: quantity, referenceQuantity: quantity },
+      create: {
+        name,
+        type: MaterialType.SIMPLE,
+        currentQuantity: quantity,
+        referenceQuantity: quantity,
+      },
     });
   }
 
-  const kits = [
-    {
-      name: 'Kit Liderança',
-      recipe: [
-        { materialName: 'Santinhos', quantityPerKit: 200 },
-        { materialName: 'Bottons', quantityPerKit: 72 },
-        { materialName: 'Adesivos de Celular', quantityPerKit: 10 },
-        { materialName: 'Cartazes', quantityPerKit: 20 },
-        { materialName: 'Adesivos de Casa (Retangular)', quantityPerKit: 5 },
-      ],
-    },
-    {
-      name: 'Kit Carro',
-      recipe: [
-        { materialName: 'Cartões', quantityPerKit: 100 },
-        { materialName: 'Bottons', quantityPerKit: 50 },
-        { materialName: 'Adesivos de Celular', quantityPerKit: 10 },
-        { materialName: 'Adesivos de Casa (Retangular)', quantityPerKit: 1 },
-      ],
-    },
-  ];
+  const occasionNames = ['Panfletagem', 'Passeatas', 'Adesivaço'];
 
-  for (const kitSeed of kits) {
-    const kit = await prisma.material.upsert({
-      where: { name: kitSeed.name },
-      update: {},
-      create: { name: kitSeed.name, type: MaterialType.KIT },
-    });
-
-    // idempotente: reconstroi a receita do zero a cada seed, em vez de acumular duplicatas
-    await prisma.kitComponent.deleteMany({ where: { kitId: kit.id } });
-
-    for (const item of kitSeed.recipe) {
-      const component = await prisma.material.findUniqueOrThrow({
-        where: { name: item.materialName },
-      });
-
-      await prisma.kitComponent.create({
-        data: {
-          kitId: kit.id,
-          componentId: component.id,
-          quantityPerKit: item.quantityPerKit,
-        },
-      });
-    }
+  for (const name of occasionNames) {
+    await prisma.occasion.upsert({ where: { name }, update: {}, create: { name } });
   }
 
   const politicalReferenceNames = [
@@ -116,9 +73,9 @@ async function main() {
   ];
 
   for (const personSeed of people) {
-    const politicalReference = await prisma.politicalReference.findUniqueOrThrow(
-      { where: { name: personSeed.politicalReferenceName } },
-    );
+    const politicalReference = await prisma.politicalReference.findUniqueOrThrow({
+      where: { name: personSeed.politicalReferenceName },
+    });
 
     await prisma.person.upsert({
       where: { name: personSeed.name },
@@ -132,7 +89,7 @@ async function main() {
   }
 
   console.log(
-    `Seed concluído: ${occasionNames.length} ocasiões, ${materialNames.length} materiais simples, ${kits.length} kits com receita, ${politicalReferenceNames.length} referências políticas e ${people.length} pessoas.`,
+    `Seed concluído: ${Object.keys(materialQuantities).length} materiais simples (estoque calculado para ${KIT_LIDERANCA_QUANTITY} Kit Liderança + ${KIT_CARRO_QUANTITY} Kit Carro), ${occasionNames.length} ocasiões, ${politicalReferenceNames.length} referências políticas e ${people.length} pessoas.`,
   );
 }
 
