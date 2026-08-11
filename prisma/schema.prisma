@@ -52,15 +52,16 @@ model Occasion {
 }
 
 model Withdrawal {
-  id         String   @id @default(uuid())
-  materialId String
-  material   Material @relation(fields: [materialId], references: [id])
-  quantity   Int
-  personId   String
-  person     Person   @relation(fields: [personId], references: [id])
-  occasionId String
-  occasion   Occasion @relation(fields: [occasionId], references: [id])
-  createdAt  DateTime @default(now())
+  id                String   @id @default(uuid())
+  materialId        String
+  material          Material @relation(fields: [materialId], references: [id])
+  quantity          Int
+  personId          String
+  person            Person   @relation(fields: [personId], references: [id])
+  occasionId        String
+  occasion          Occasion @relation(fields: [occasionId], references: [id])
+  withdrawalGroupId String?
+  createdAt         DateTime @default(now())
 }
 
 model PoliticalReference {

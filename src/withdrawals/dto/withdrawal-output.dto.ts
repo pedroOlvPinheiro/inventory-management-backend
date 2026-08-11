@@ -6,6 +6,7 @@ export class WithdrawalOutputDTO {
   quantity: number;
   personId: string;
   occasionId: string;
+  withdrawalGroupId: string | null;
   createdAt: Date;
   warning?: string;
 
@@ -15,6 +16,7 @@ export class WithdrawalOutputDTO {
     this.quantity = withdrawal.quantity;
     this.personId = withdrawal.personId;
     this.occasionId = withdrawal.occasionId;
+    this.withdrawalGroupId = withdrawal.withdrawalGroupId;
     this.createdAt = withdrawal.createdAt;
     this.warning = warning;
   }
