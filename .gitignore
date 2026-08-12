@@ -27,3 +27,6 @@ npm-debug.log*
 
 # Prisma
 prisma/*.db
+
+# design reference assets (not part of the app)
+/data-visualizer-refs
