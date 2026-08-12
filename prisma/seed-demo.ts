@@ -8,28 +8,33 @@ import { PrismaClient } from '@prisma/client';
 // reais no lugar de uma base zerada. NÃO faz parte do seed automático do
 // `prisma migrate reset` (que continua rodando só prisma/seed.ts) — rode
 // manualmente com `npm run seed:demo` sempre que quiser popular de novo.
+//
+// Resolve materiais/ocasiões/pessoas pelo NOME (não por id fixo): os ids são
+// gerados aleatoriamente (@default(uuid())) a cada `prisma/seed.ts`, então
+// mudam de máquina pra máquina. Rodar isso pressupõe que prisma/seed.ts já
+// rodou antes (materiais, ocasiões e pessoas precisam existir).
 
 const prisma = new PrismaClient();
 
-const MATERIAL = {
-  bottons: '163488d6-abc5-4ca6-b6a2-d2489fe9d522',
-  adesivosCelular: '4f65d873-a08b-429e-9984-0e9a594d82cf',
-  cartazes: '7302752d-3567-4b20-ae07-3b7a3f1649de',
-  adesivosCasa: '22a3093f-679c-431d-8d9d-5353c19c7c20',
-  cartoes: 'fd2f8153-8276-48d2-aad8-35474201866b',
-};
+const MATERIAL_NAMES = {
+  bottons: 'Bottons',
+  adesivosCelular: 'Adesivos de Celular',
+  cartazes: 'Cartazes',
+  adesivosCasa: 'Adesivos de Casa (Retangular)',
+  cartoes: 'Cartões',
+} as const;
 
-const OCCASION = {
-  panfletagem: '2aaf042d-57c8-4d70-884d-1bffd6f573d8',
-  passeatas: '503b16a7-c3a7-4314-98b1-ef82c2f72c29',
-  adesivaco: '25ed7b52-77da-4a67-ba8c-344f72c0e9f4',
-};
+const OCCASION_NAMES = {
+  panfletagem: 'Panfletagem',
+  passeatas: 'Passeatas',
+  adesivaco: 'Adesivaço',
+} as const;
 
-const PERSON = {
-  ana: '0a989e15-c6a8-41f6-a479-328d9f2e8a64',
-  carlos: '80db2987-997b-44c7-8d30-2baa451421a0',
-  beatriz: 'c78d59ca-b60f-4b77-b403-afb15cdc963d',
-};
+const PERSON_NAMES = {
+  ana: 'Ana Paula Souza',
+  carlos: 'Carlos Eduardo Lima',
+  beatriz: 'Beatriz Fernandes',
+} as const;
 
 function at(day: number, hour = 10) {
   return new Date(2026, 7, day, hour, 0, 0); // agosto (mês 7, 0-indexado)
@@ -57,53 +62,92 @@ interface ReturnSeed {
   createdAt: Date;
 }
 
-const entries: EntrySeed[] = [
-  { materialId: MATERIAL.bottons, quantity: 3000, createdAt: at(2) },
-  { materialId: MATERIAL.adesivosCelular, quantity: 1000, createdAt: at(2) },
-  { materialId: MATERIAL.cartazes, quantity: 500, createdAt: at(3) },
-  { materialId: MATERIAL.adesivosCasa, quantity: 200, createdAt: at(3) },
-  { materialId: MATERIAL.cartoes, quantity: 2000, createdAt: at(2) },
-];
+async function resolveIds<T extends Record<string, string>>(
+  names: T,
+  finder: (name: string) => Promise<{ id: string } | null>,
+  label: string,
+): Promise<{ [K in keyof T]: string }> {
+  const result = {} as { [K in keyof T]: string };
 
-const withdrawals: WithdrawalSeed[] = [
-  { materialId: MATERIAL.bottons, quantity: 4000, personId: PERSON.ana, occasionId: OCCASION.panfletagem, createdAt: at(4) },
-  { materialId: MATERIAL.bottons, quantity: 3500, personId: PERSON.carlos, occasionId: OCCASION.passeatas, createdAt: at(7) },
-  { materialId: MATERIAL.bottons, quantity: 5000, personId: PERSON.beatriz, occasionId: OCCASION.adesivaco, createdAt: at(10) },
+  for (const key of Object.keys(names) as (keyof T)[]) {
+    const name = names[key];
+    const record = await finder(name);
 
-  { materialId: MATERIAL.adesivosCelular, quantity: 1200, personId: PERSON.ana, occasionId: OCCASION.panfletagem, createdAt: at(5) },
-  { materialId: MATERIAL.adesivosCelular, quantity: 900, personId: PERSON.carlos, occasionId: OCCASION.passeatas, createdAt: at(9) },
+    if (!record) {
+      throw new Error(
+        `${label} "${name}" não encontrado(a) — rode "npx prisma db seed" (ou migrate reset) antes de rodar o seed de demonstração.`,
+      );
+    }
 
-  { materialId: MATERIAL.cartazes, quantity: 800, personId: PERSON.beatriz, occasionId: OCCASION.adesivaco, createdAt: at(6) },
-  { materialId: MATERIAL.cartazes, quantity: 700, personId: PERSON.ana, occasionId: OCCASION.panfletagem, createdAt: at(11) },
+    result[key] = record.id;
+  }
 
-  // Adesivos de Casa (Retangular): consumo proposital mais agressivo, pra
-  // passar dos 50% e mostrar o alerta de estoque baixo funcionando de verdade.
-  { materialId: MATERIAL.adesivosCasa, quantity: 400, personId: PERSON.ana, occasionId: OCCASION.panfletagem, createdAt: at(4) },
-  { materialId: MATERIAL.adesivosCasa, quantity: 500, personId: PERSON.carlos, occasionId: OCCASION.passeatas, createdAt: at(6) },
-  { materialId: MATERIAL.adesivosCasa, quantity: 350, personId: PERSON.beatriz, occasionId: OCCASION.adesivaco, createdAt: at(8) },
-  { materialId: MATERIAL.adesivosCasa, quantity: 600, personId: PERSON.ana, occasionId: OCCASION.panfletagem, createdAt: at(9) },
-  { materialId: MATERIAL.adesivosCasa, quantity: 450, personId: PERSON.carlos, occasionId: OCCASION.passeatas, createdAt: at(10) },
-  { materialId: MATERIAL.adesivosCasa, quantity: 500, personId: PERSON.beatriz, occasionId: OCCASION.adesivaco, createdAt: at(11) },
-  { materialId: MATERIAL.adesivosCasa, quantity: 300, personId: PERSON.ana, occasionId: OCCASION.panfletagem, createdAt: at(12) },
-];
-
-const returns: ReturnSeed[] = [
-  { materialId: MATERIAL.bottons, quantity: 500, occasionId: OCCASION.panfletagem, createdAt: at(5, 16) },
-  { materialId: MATERIAL.cartazes, quantity: 200, occasionId: OCCASION.adesivaco, createdAt: at(7, 16) },
-  { materialId: MATERIAL.adesivosCasa, quantity: 400, occasionId: OCCASION.passeatas, createdAt: at(7, 16) },
-];
-
-// Kit personalizado: 3 materiais retirados juntos, mesma pessoa/ocasião,
-// pra demonstrar o agrupamento no histórico de Saídas.
-const BATCH_GROUP_ID = randomUUID();
-
-const batchWithdrawals: WithdrawalSeed[] = [
-  { materialId: MATERIAL.cartoes, quantity: 3000, personId: PERSON.beatriz, occasionId: OCCASION.adesivaco, createdAt: at(12, 14), withdrawalGroupId: BATCH_GROUP_ID },
-  { materialId: MATERIAL.bottons, quantity: 1500, personId: PERSON.beatriz, occasionId: OCCASION.adesivaco, createdAt: at(12, 14), withdrawalGroupId: BATCH_GROUP_ID },
-  { materialId: MATERIAL.adesivosCelular, quantity: 600, personId: PERSON.beatriz, occasionId: OCCASION.adesivaco, createdAt: at(12, 14), withdrawalGroupId: BATCH_GROUP_ID },
-];
+  return result;
+}
 
 async function main() {
+  const MATERIAL = await resolveIds(
+    MATERIAL_NAMES,
+    (name) => prisma.material.findUnique({ where: { name }, select: { id: true } }),
+    'Material',
+  );
+  const OCCASION = await resolveIds(
+    OCCASION_NAMES,
+    (name) => prisma.occasion.findUnique({ where: { name }, select: { id: true } }),
+    'Ocasião',
+  );
+  const PERSON = await resolveIds(
+    PERSON_NAMES,
+    (name) => prisma.person.findUnique({ where: { name }, select: { id: true } }),
+    'Pessoa',
+  );
+
+  const entries: EntrySeed[] = [
+    { materialId: MATERIAL.bottons, quantity: 3000, createdAt: at(2) },
+    { materialId: MATERIAL.adesivosCelular, quantity: 1000, createdAt: at(2) },
+    { materialId: MATERIAL.cartazes, quantity: 500, createdAt: at(3) },
+    { materialId: MATERIAL.adesivosCasa, quantity: 200, createdAt: at(3) },
+    { materialId: MATERIAL.cartoes, quantity: 2000, createdAt: at(2) },
+  ];
+
+  const withdrawals: WithdrawalSeed[] = [
+    { materialId: MATERIAL.bottons, quantity: 4000, personId: PERSON.ana, occasionId: OCCASION.panfletagem, createdAt: at(4) },
+    { materialId: MATERIAL.bottons, quantity: 3500, personId: PERSON.carlos, occasionId: OCCASION.passeatas, createdAt: at(7) },
+    { materialId: MATERIAL.bottons, quantity: 5000, personId: PERSON.beatriz, occasionId: OCCASION.adesivaco, createdAt: at(10) },
+
+    { materialId: MATERIAL.adesivosCelular, quantity: 1200, personId: PERSON.ana, occasionId: OCCASION.panfletagem, createdAt: at(5) },
+    { materialId: MATERIAL.adesivosCelular, quantity: 900, personId: PERSON.carlos, occasionId: OCCASION.passeatas, createdAt: at(9) },
+
+    { materialId: MATERIAL.cartazes, quantity: 800, personId: PERSON.beatriz, occasionId: OCCASION.adesivaco, createdAt: at(6) },
+    { materialId: MATERIAL.cartazes, quantity: 700, personId: PERSON.ana, occasionId: OCCASION.panfletagem, createdAt: at(11) },
+
+    // Adesivos de Casa (Retangular): consumo proposital mais agressivo, pra
+    // passar dos 50% e mostrar o alerta de estoque baixo funcionando de verdade.
+    { materialId: MATERIAL.adesivosCasa, quantity: 400, personId: PERSON.ana, occasionId: OCCASION.panfletagem, createdAt: at(4) },
+    { materialId: MATERIAL.adesivosCasa, quantity: 500, personId: PERSON.carlos, occasionId: OCCASION.passeatas, createdAt: at(6) },
+    { materialId: MATERIAL.adesivosCasa, quantity: 350, personId: PERSON.beatriz, occasionId: OCCASION.adesivaco, createdAt: at(8) },
+    { materialId: MATERIAL.adesivosCasa, quantity: 600, personId: PERSON.ana, occasionId: OCCASION.panfletagem, createdAt: at(9) },
+    { materialId: MATERIAL.adesivosCasa, quantity: 450, personId: PERSON.carlos, occasionId: OCCASION.passeatas, createdAt: at(10) },
+    { materialId: MATERIAL.adesivosCasa, quantity: 500, personId: PERSON.beatriz, occasionId: OCCASION.adesivaco, createdAt: at(11) },
+    { materialId: MATERIAL.adesivosCasa, quantity: 300, personId: PERSON.ana, occasionId: OCCASION.panfletagem, createdAt: at(12) },
+  ];
+
+  const returns: ReturnSeed[] = [
+    { materialId: MATERIAL.bottons, quantity: 500, occasionId: OCCASION.panfletagem, createdAt: at(5, 16) },
+    { materialId: MATERIAL.cartazes, quantity: 200, occasionId: OCCASION.adesivaco, createdAt: at(7, 16) },
+    { materialId: MATERIAL.adesivosCasa, quantity: 400, occasionId: OCCASION.passeatas, createdAt: at(7, 16) },
+  ];
+
+  // Kit personalizado: 3 materiais retirados juntos, mesma pessoa/ocasião,
+  // pra demonstrar o agrupamento no histórico de Saídas.
+  const batchGroupId = randomUUID();
+
+  const batchWithdrawals: WithdrawalSeed[] = [
+    { materialId: MATERIAL.cartoes, quantity: 3000, personId: PERSON.beatriz, occasionId: OCCASION.adesivaco, createdAt: at(12, 14), withdrawalGroupId: batchGroupId },
+    { materialId: MATERIAL.bottons, quantity: 1500, personId: PERSON.beatriz, occasionId: OCCASION.adesivaco, createdAt: at(12, 14), withdrawalGroupId: batchGroupId },
+    { materialId: MATERIAL.adesivosCelular, quantity: 600, personId: PERSON.beatriz, occasionId: OCCASION.adesivaco, createdAt: at(12, 14), withdrawalGroupId: batchGroupId },
+  ];
+
   const allWithdrawals = [...withdrawals, ...batchWithdrawals];
 
   const netByMaterial = new Map<string, number>();
