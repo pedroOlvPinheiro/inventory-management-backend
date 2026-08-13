@@ -1,9 +1,10 @@
-import { Material, MaterialType } from '@prisma/client';
+import { Material, MaterialType, PoliticalTag } from '@prisma/client';
 
 export class MaterialOutputDTO {
   id: string;
   name: string;
   type: MaterialType;
+  tags: PoliticalTag[];
   currentQuantity: number;
   referenceQuantity: number | null;
   percentage: number | null;
@@ -17,6 +18,7 @@ export class MaterialOutputDTO {
     this.id = material.id;
     this.name = material.name;
     this.type = material.type;
+    this.tags = material.tags;
     this.currentQuantity = material.currentQuantity;
     this.referenceQuantity = material.referenceQuantity;
     this.percentage = percentage;

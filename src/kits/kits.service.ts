@@ -4,9 +4,10 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Material, MaterialType, Prisma } from '@prisma/client';
+import { Material, MaterialType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { normalizeName } from '../utils/normalize-name.util';
+import { sortTags } from '../utils/sort-tags.util';
 import { CreateKitDTO } from './dto/create-kit.dto';
 import { AssembleKitDTO } from './dto/assemble-kit.dto';
 import { KitComponentOutputDTO, KitOutputDTO } from './dto/kit-output.dto';
@@ -17,6 +18,7 @@ export class KitsService {
 
   async create(dto: CreateKitDTO): Promise<KitOutputDTO> {
     const name = normalizeName(dto.name);
+    const tags = sortTags(dto.tags);
 
     const materialIds = dto.components.map((component) => component.materialId);
     const uniqueMaterialIds = new Set(materialIds);
@@ -28,11 +30,16 @@ export class KitsService {
     }
 
     const existing = await this.prisma.material.findFirst({
-      where: { name: { equals: name, mode: 'insensitive' } },
+      where: {
+        name: { equals: name, mode: 'insensitive' },
+        tags: { equals: tags },
+      },
     });
 
     if (existing) {
-      throw new ConflictException(`Já existe um kit com o nome "${name}"`);
+      throw new ConflictException(
+        `Já existe um kit com o nome "${name}" e a(s) mesma(s) etiqueta(s)`,
+      );
     }
 
     const componentMaterials = await this.prisma.material.findMany({
@@ -57,36 +64,23 @@ export class KitsService {
       }
     }
 
-    try {
-      const kit = await this.prisma.$transaction(async (tx) => {
-        const createdKit = await tx.material.create({
-          data: { name, type: MaterialType.KIT },
-        });
-
-        await tx.kitComponent.createMany({
-          data: dto.components.map((component) => ({
-            kitId: createdKit.id,
-            componentId: component.materialId,
-            quantityPerKit: component.quantityPerKit,
-          })),
-        });
-
-        return createdKit;
+    const kit = await this.prisma.$transaction(async (tx) => {
+      const createdKit = await tx.material.create({
+        data: { name, type: MaterialType.KIT, tags },
       });
 
-      return this.toOutputDto(kit);
-    } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2002'
-      ) {
-        throw new ConflictException(
-          `Já existe um material com o nome "${name}"`,
-        );
-      }
+      await tx.kitComponent.createMany({
+        data: dto.components.map((component) => ({
+          kitId: createdKit.id,
+          componentId: component.materialId,
+          quantityPerKit: component.quantityPerKit,
+        })),
+      });
 
-      throw error;
-    }
+      return createdKit;
+    });
+
+    return this.toOutputDto(kit);
   }
 
   async findAll(): Promise<KitOutputDTO[]> {

@@ -35,6 +35,9 @@ export class EntriesService {
         data: {
           materialId: dto.materialId,
           quantity: dto.quantity,
+          createdAt: dto.createdAt
+            ? new Date(`${dto.createdAt}T12:00:00`)
+            : undefined,
         },
       });
 

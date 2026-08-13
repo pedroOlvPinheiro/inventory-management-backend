@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Material, MaterialType, Prisma } from '@prisma/client';
+import { Material, MaterialType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateMaterialDTO } from './dto/create-material.dto';
 import { UpdateMaterialDTO } from './dto/update-material.dto';
@@ -14,6 +14,7 @@ import {
   MaterialStatsTimelinePointDTO,
 } from './dto/material-stats-output.dto';
 import { normalizeName } from '../utils/normalize-name.util';
+import { sortTags } from '../utils/sort-tags.util';
 
 @Injectable()
 export class MaterialsService {
@@ -21,36 +22,30 @@ export class MaterialsService {
 
   async create(dto: CreateMaterialDTO): Promise<MaterialOutputDTO> {
     const name = normalizeName(dto.name);
+    const tags = sortTags(dto.tags);
 
     const existing = await this.prisma.material.findFirst({
-      where: { name: { equals: name, mode: 'insensitive' } },
+      where: {
+        name: { equals: name, mode: 'insensitive' },
+        tags: { equals: tags },
+      },
     });
 
     if (existing) {
-      throw new ConflictException(`Já existe um material com o nome "${name}"`);
+      throw new ConflictException(
+        `Já existe um material com o nome "${name}" e a(s) mesma(s) etiqueta(s)`,
+      );
     }
 
-    try {
-      const material = await this.prisma.material.create({
-        data: {
-          name,
-          type: MaterialType.SIMPLE,
-        },
-      });
+    const material = await this.prisma.material.create({
+      data: {
+        name,
+        type: MaterialType.SIMPLE,
+        tags,
+      },
+    });
 
-      return this.toOutputDto(material);
-    } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2002'
-      ) {
-        throw new ConflictException(
-          `Já existe um material com o nome "${name}"`,
-        );
-      }
-
-      throw error;
-    }
+    return this.toOutputDto(material);
   }
 
   async findAll(type?: MaterialType): Promise<MaterialOutputDTO[]> {
@@ -74,18 +69,30 @@ export class MaterialsService {
   }
 
   async update(id: string, dto: UpdateMaterialDTO): Promise<MaterialOutputDTO> {
-    await this.findOne(id);
+    const current = await this.prisma.material.findUnique({ where: { id } });
+
+    if (!current) {
+      throw new NotFoundException(`Material com id ${id} não encontrado`);
+    }
 
     const name = dto.name !== undefined ? normalizeName(dto.name) : undefined;
+    const tags = dto.tags !== undefined ? sortTags(dto.tags) : undefined;
 
-    if (name !== undefined) {
+    if (name !== undefined || tags !== undefined) {
+      const effectiveName = name ?? current.name;
+      const effectiveTags = tags ?? current.tags;
+
       const existing = await this.prisma.material.findFirst({
-        where: { name: { equals: name, mode: 'insensitive' }, NOT: { id } },
+        where: {
+          name: { equals: effectiveName, mode: 'insensitive' },
+          tags: { equals: effectiveTags },
+          NOT: { id },
+        },
       });
 
       if (existing) {
         throw new ConflictException(
-          `Já existe um material com o nome "${name}"`,
+          `Já existe um material com o nome "${effectiveName}" e a(s) mesma(s) etiqueta(s)`,
         );
       }
     }
@@ -94,6 +101,7 @@ export class MaterialsService {
       where: { id },
       data: {
         name,
+        tags,
         referenceQuantity: dto.referenceQuantity,
       },
     });

@@ -1,6 +1,15 @@
-import { PrismaClient, MaterialType } from '@prisma/client';
+import { PrismaClient, MaterialType, PoliticalTag } from '@prisma/client';
 
 const prisma = new PrismaClient();
+
+// name deixou de ser @unique em Material (materiais tageados por figura
+// política podem repetir nome), então o upsert-por-nome não vale mais aqui.
+// Como esse seed só roda contra um banco recém-resetado, cria direto.
+const SEED_TAGS: PoliticalTag[] = [
+  PoliticalTag.PAULO_CASE,
+  PoliticalTag.PEDRO_LUCAS,
+  PoliticalTag.ORLEANS_BRANDAO,
+];
 
 async function main() {
   // Previsão da primeira semana de campanha: 500 Kit Liderança + 2000 Kit Carro.
@@ -21,17 +30,19 @@ async function main() {
     Cartões: 100 * KIT_CARRO_QUANTITY,
   };
 
+  let materialIndex = 0;
+
   for (const [name, quantity] of Object.entries(materialQuantities)) {
-    await prisma.material.upsert({
-      where: { name },
-      update: { currentQuantity: quantity, referenceQuantity: quantity },
-      create: {
+    await prisma.material.create({
+      data: {
         name,
         type: MaterialType.SIMPLE,
+        tags: [SEED_TAGS[materialIndex % SEED_TAGS.length]],
         currentQuantity: quantity,
         referenceQuantity: quantity,
       },
     });
+    materialIndex += 1;
   }
 
   const occasionNames = ['Panfletagem', 'Passeatas', 'Adesivaço'];

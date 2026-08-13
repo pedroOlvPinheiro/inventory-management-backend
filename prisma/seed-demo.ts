@@ -88,7 +88,9 @@ async function resolveIds<T extends Record<string, string>>(
 async function main() {
   const MATERIAL = await resolveIds(
     MATERIAL_NAMES,
-    (name) => prisma.material.findUnique({ where: { name }, select: { id: true } }),
+    // name deixou de ser @unique em Material (materiais podem repetir nome
+    // com etiquetas diferentes) — findFirst no lugar de findUnique.
+    (name) => prisma.material.findFirst({ where: { name }, select: { id: true } }),
     'Material',
   );
   const OCCASION = await resolveIds(

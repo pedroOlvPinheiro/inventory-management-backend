@@ -18,14 +18,21 @@ enum MaterialType {
   KIT
 }
 
+enum PoliticalTag {
+  PAULO_CASE
+  PEDRO_LUCAS
+  ORLEANS_BRANDAO
+}
+
 model Material {
-  id                String       @id @default(uuid())
-  name              String       @unique
-  type              MaterialType @default(SIMPLE)
-  currentQuantity   Int          @default(0)
+  id                String         @id @default(uuid())
+  name              String
+  type              MaterialType   @default(SIMPLE)
+  tags              PoliticalTag[]
+  currentQuantity   Int            @default(0)
   referenceQuantity Int?
-  createdAt         DateTime     @default(now())
-  updatedAt         DateTime     @updatedAt
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
 
   entries         StockEntry[]
   withdrawals     Withdrawal[]
